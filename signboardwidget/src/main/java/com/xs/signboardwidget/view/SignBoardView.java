@@ -1,7 +1,9 @@
 package com.xs.signboardwidget.view;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -12,6 +14,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
+import com.xs.signboardwidget.R;
+
 /**
  * @version V1.0 <签名板>
  * @author: Xs
@@ -20,27 +24,23 @@ import android.view.WindowManager;
  */
 public class SignBoardView extends View {
     private static final String TAG = "SignBoardView";
-    private static final int ENABLE_QUADTO_DISTANCE = 3;
+    private static final int ENABLE_QUADTO_DISTANCE = 4;
     private Paint   mPaint;
     private Paint   mPaintBitmap;
     private Path    mPath;
-    private Bitmap  mBitmap;
+    private Bitmap  mBitmap,mWriteBitmap;
     private Canvas  mCanvas;
     private float   _downX,_downY;//起始坐标点
-
-
-    public SignBoardView(Context context) {
-        super(context);
-        initView(context);
-    }
+    private float   mPaintX ,mPaintY ,mPaintWidth,mPaintHeight;//画笔图标显示
+    private int mPaintColor;//画笔颜色
+    private float mPaintStrokWidth;//画笔笔画粗细
 
     public SignBoardView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        initView(context);
-    }
-
-    public SignBoardView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
+        TypedArray mTypeArray = context.obtainStyledAttributes(attrs, R.styleable.SignBoardView);
+        mPaintColor = mTypeArray.getColor(R.styleable.SignBoardView_paintColor,0x00000000);
+        mPaintStrokWidth = mTypeArray.getFloat(R.styleable.SignBoardView_paintStrokeWidth,5f);
+        mTypeArray.recycle();
         initView(context);
     }
 
@@ -48,23 +48,26 @@ public class SignBoardView extends View {
         mPaint = new Paint();
         mPaint.setAntiAlias(true);
         mPaint.setDither(true);
-        mPaint.setColor(Color.rgb(0,0,0));
+        mPaint.setColor(mPaintColor);
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setStrokeJoin(Paint.Join.ROUND);
         mPaint.setStrokeCap(Paint.Cap.ROUND);
-        mPaint.setStrokeWidth(5f);
-
-        mPath = new Path();
-
+        mPaint.setStrokeWidth(mPaintStrokWidth);
         WindowManager manager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
         final int screenWidth = manager.getDefaultDisplay().getWidth();
         try {
-            mBitmap = Bitmap.createBitmap(screenWidth - 50,1000, Bitmap.Config.ARGB_4444);
+            mBitmap = Bitmap.createBitmap(screenWidth - 40,1000, Bitmap.Config.ARGB_4444);
+            mWriteBitmap = BitmapFactory.decodeResource(getResources(),android.R.drawable.ic_menu_edit);
+            mPaintHeight = mWriteBitmap.getHeight();
+            mPaintWidth = mWriteBitmap.getWidth();
+            mPaintX = mPaintWidth;
+            mPaintY = mPaintHeight;
         }catch (OutOfMemoryError error) {
             Log.e(TAG, "initView: OOM" );
         }
         mCanvas = new Canvas(mBitmap);
         mPaintBitmap = new Paint(Paint.DITHER_FLAG);
+        mPath = new Path();
     }
 
     /**
@@ -73,13 +76,18 @@ public class SignBoardView extends View {
      * @param y
      */
     private void touchDown(float x,float y) {
-        _downX = x;
-        _downY = y;
         mPath.reset();
         mPath.moveTo(x,y);
+        _downX = x;
+        _downY = y;
+        mPaintX = x;
+        mPaintY = y;
     }
 
-    private void touchUp(float x,float y) {
+    /**
+     * end
+     */
+    private void touchUp() {
         mPath.lineTo(_downX,_downY);
         mCanvas.drawPath(mPath,mPaint);
         mPath.reset();
@@ -99,32 +107,37 @@ public class SignBoardView extends View {
             mPath.quadTo(_downX,_downY,(x + _downX) / 2,(y + _downY) / 2);
             _downX = x;
             _downY = y;
+            mPaintX = x;
+            mPaintY = y;
         }
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
+        canvas.drawColor(0xFFFFFFFF);
+        canvas.drawBitmap(mBitmap,0,0,mPaintBitmap);
         canvas.drawPath(mPath,mPaint);
-//        canvas.drawBitmap(mBitmap,0,0,mPaintBitmap);
+        canvas.drawBitmap(mWriteBitmap,mPaintX,mPaintY - mPaintHeight,mPaintBitmap);
     }
+
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-
+        final float x = event.getX();
+        final float y = event.getY();
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                touchDown(event.getX(),event.getY());
-                invalidate();
+                touchDown(x,y);
+                postInvalidate();
                 break;
             case MotionEvent.ACTION_UP:
-                touchMove(event.getX(),event.getY());
-                invalidate();
+                touchUp();
+                postInvalidate();
                 break;
             case MotionEvent.ACTION_MOVE:
-                touchUp(event.getX(),event.getY());
-                invalidate();
+                touchMove(x,y);
+                postInvalidate();
                 break;
-            default:break;
         }
 
         return true;
@@ -132,6 +145,56 @@ public class SignBoardView extends View {
 
     @Override
     protected void onDetachedFromWindow() {
+        if (mBitmap != null && !mBitmap.isRecycled()) {
+            mBitmap.recycle();
+            mBitmap = null;
+        }
+        if (mWriteBitmap != null && !mWriteBitmap.isRecycled()) {
+            mWriteBitmap.recycle();
+            mWriteBitmap = null;
+        }
         super.onDetachedFromWindow();
+    }
+
+    /**
+     * 橡皮擦
+     */
+    public void clearView() {
+        mBitmap.eraseColor(Color.TRANSPARENT);
+        postInvalidate();
+    }
+
+    /**
+     * 设置画笔颜色
+     * @param color
+     */
+    public void setPaintColor(int color) {
+        mPaintColor = color;
+        mPaint.setColor(getResources().getColor(mPaintColor));
+        postInvalidate();
+    }
+
+    /**
+     * 减小画笔粗细
+     */
+    public void setmPaintStrokWidthSmaller() {
+        mPaintStrokWidth -= 3f;
+        if (mPaintStrokWidth <= 5f) {
+            mPaintStrokWidth = 5f;
+            return;
+        }
+        mPaint.setStrokeWidth(mPaintStrokWidth);
+    }
+
+    /**
+     * 增大画笔粗细
+     */
+    public void setmPaintStrokWidthLarger() {
+        mPaintStrokWidth += 3f;
+        if (mPaintStrokWidth > 20f) {
+            mPaintStrokWidth = 20f;
+            return;
+        }
+        mPaint.setStrokeWidth(mPaintStrokWidth);
     }
 }
