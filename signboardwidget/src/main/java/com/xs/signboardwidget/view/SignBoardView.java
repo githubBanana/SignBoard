@@ -197,4 +197,8 @@ public class SignBoardView extends View {
         }
         mPaint.setStrokeWidth(mPaintStrokWidth);
     }
+
+    public Bitmap getSignBoardBitmamp() {
+        return mBitmap;
+    }
 }

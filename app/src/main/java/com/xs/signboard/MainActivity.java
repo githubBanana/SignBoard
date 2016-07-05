@@ -4,7 +4,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 
+import com.xs.signboardwidget.signdialog.SignPanel;
 import com.xs.signboardwidget.view.SignBoardView;
 
 public class MainActivity extends AppCompatActivity {
@@ -21,6 +23,9 @@ public class MainActivity extends AppCompatActivity {
         final Button mBtnGray = (Button) findViewById(R.id.btn_gray);
         final Button mBtnSmaller = (Button) findViewById(R.id.btn_smaller);
         final Button mBtnLarger = (Button) findViewById(R.id.btn_larger);
+        final Button mBtnOk = (Button) findViewById(R.id.btn_ok);
+        final Button mBtnShow = (Button) findViewById(R.id.btn_show);
+
         mBtnClear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -63,6 +68,22 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        mBtnOk.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                final ImageView mIv = (ImageView) findViewById(R.id.iv_test);
+                mIv.setImageBitmap(mSbv.getSignBoardBitmamp());
+            }
+        });
+
+
+
+        mBtnShow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                SignPanel.getPanel().show(getSupportFragmentManager(),SignPanel.TAG);
+            }
+        });
 
     }
 }
